@@ -29,7 +29,7 @@
 body{font-family:'Inter',system-ui,sans-serif;background:#f0f2f5;color:var(--g800);line-height:1.65}
 
 /* TOPNAV */
-.topnav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--g200);box-shadow:var(--sh)}
+.topnav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,.98);border-bottom:1px solid var(--g200);box-shadow:var(--sh)}
 .tn-row{max-width:960px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .tn-left{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .tn-title{font-size:.85rem;font-weight:800;color:var(--g900);white-space:nowrap}
@@ -44,7 +44,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f0f2f5;color:var(--g80
 .pr-lbl{font-size:.58rem;color:var(--g400)}
 
 /* Chapter nav */
-.ch-nav{background:var(--g50);border-bottom:1px solid var(--g200);overflow:visible;position:relative;z-index:100}
+.ch-nav{background:var(--g50);border-bottom:1px solid var(--g200);overflow:visible;position:relative;z-index:200}
 .ch-nav-in{max-width:960px;margin:0 auto;padding:6px 16px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .ch-nav-in::-webkit-scrollbar{display:none}
 .cb{position:relative;padding:6px 14px;border-radius:8px;border:1.5px solid var(--g200);background:white;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;color:var(--g500);white-space:nowrap;flex-shrink:0}
@@ -58,8 +58,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f0f2f5;color:var(--g80
 .cd .cgl{padding:5px 16px 2px;font-size:.62rem;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.5px}
 
 /* Topic nav pills */
-.tp-nav{background:white;border-bottom:1px solid var(--g200);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.tp-nav::-webkit-scrollbar{display:none}
+.tp-nav{background:white;border-bottom:1px solid var(--g200);position:relative;z-index:1}
+.tp-nav-scroll{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tp-nav-scroll::-webkit-scrollbar{display:none}
 .tp-nav-in{max-width:960px;margin:0 auto;padding:7px 16px;display:flex;gap:5px}
 .tp{padding:5px 13px;border-radius:20px;border:none;background:var(--g100);font-size:.7rem;font-weight:600;cursor:pointer;transition:all .2s;color:var(--g500);white-space:nowrap;flex-shrink:0}
 .tp:hover{background:var(--g200);color:var(--g700)}
