@@ -255,6 +255,36 @@ ul.sl.dte li::before{background:var(--teal)}ul.sl.dp li::before{background:var(-
 /* Toast notification */
 .toast{position:fixed;bottom:130px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--g800);color:white;padding:10px 20px;border-radius:10px;font-size:.8rem;font-weight:600;z-index:3000;opacity:0;transition:all .3s ease;pointer-events:none;white-space:nowrap;box-shadow:var(--shl)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* TTS listen icon in topic header */
+.tts-play{width:32px;height:32px;border-radius:50%;border:2px solid var(--blue);background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1e40af;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;-webkit-tap-highlight-color:transparent;margin-left:auto;padding:0}
+.tts-play:active{transform:scale(.9)}
+.tts-play svg{width:16px;height:16px}
+.tts-play.active{border-color:#dc2626;background:linear-gradient(135deg,#fef2f2,#fee2e2);color:#991b1b}
+
+/* TTS bottom player bar */
+.tts-bar{position:fixed;bottom:0;left:0;right:0;z-index:5000;background:rgba(255,255,255,.97);border-top:1px solid var(--g200);box-shadow:0 -4px 20px rgba(0,0,0,.1);transform:translateY(100%);transition:transform .3s ease;padding:0;padding-bottom:env(safe-area-inset-bottom,0)}
+.tts-bar.show{transform:translateY(0)}
+.tts-bar-in{max-width:960px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.tts-bar-info{flex:1;min-width:0}
+.tts-bar-title{font-size:.75rem;font-weight:800;color:var(--g800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tts-bar-sub{font-size:.65rem;color:var(--g400);margin-top:1px}
+.tts-bar-btn{width:38px;height:38px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;-webkit-tap-highlight-color:transparent;padding:0;flex-shrink:0}
+.tts-bar-btn svg{width:18px;height:18px}
+.tts-bar-btn.skip{background:var(--g100);color:var(--g600)}
+.tts-bar-btn.skip:active{background:var(--g200);transform:scale(.9)}
+.tts-bar-btn.pp{width:44px;height:44px;background:var(--blue);color:white;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.tts-bar-btn.pp:active{transform:scale(.9)}
+.tts-bar-btn.close{background:transparent;color:var(--g400);width:30px;height:30px}
+.tts-bar-btn.close:active{color:var(--red)}
+.tts-bar-btn.close svg{width:14px;height:14px}
+
+/* TTS sentence highlight */
+.tts-hl{background:linear-gradient(135deg,#fef9c3,#fef08a);border-radius:4px;transition:background .3s}
+
+/* Bump bottom elements up when player is showing */
+body.tts-active .btt{bottom:90px}
+body.tts-active .claude-fab{bottom:140px}
 </style>
 </head>
 <body>
@@ -384,6 +414,20 @@ ul.sl.dte li::before{background:var(--teal)}ul.sl.dp li::before{background:var(-
 
 <!-- Claude FAB -->
 <a class="claude-fab" href="https://claude.ai/new" target="_blank" rel="noopener" title="Open Claude to study">C</a>
+
+<!-- TTS Player Bar -->
+<div class="tts-bar" id="ttsBar">
+  <div class="tts-bar-in">
+    <button class="tts-bar-btn skip" onclick="ttsPrev()" title="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+    <button class="tts-bar-btn pp" id="ttsPP" onclick="ttsPlayPause()" title="Play/Pause"><svg viewBox="0 0 24 24" fill="currentColor" id="ttsPPIcon"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>
+    <button class="tts-bar-btn skip" onclick="ttsNext()" title="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zm-10 6l8.5 6V6z" transform="scale(-1,1) translate(-24,0)"/></svg></button>
+    <div class="tts-bar-info">
+      <div class="tts-bar-title" id="ttsTitle">—</div>
+      <div class="tts-bar-sub" id="ttsSub">—</div>
+    </div>
+    <button class="tts-bar-btn close" onclick="ttsClose()" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+</div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -1515,7 +1559,7 @@ function renderSection(id, sec) {
   (sec.topics||[]).forEach((topic, ti) => {
     const clr = colors[ti % colors.length];
     h += `<div class="ts ${clr}" id="t-${id}-${ti}">`;
-    h += `<div class="ts-h"><span class="ts-i">${topic.icon||'📘'}</span><span class="ts-t">${topic.name}</span></div>`;
+    h += `<div class="ts-h"><span class="ts-i">${topic.icon||'📘'}</span><span class="ts-t">${topic.name}</span><button class="tts-play" id="tts-${id}-${ti}" onclick="toggleTTS('${id}',${ti})" title="Listen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="6 3 20 12 6 21 6 3" fill="currentColor" stroke="none"/></svg></button></div>`;
     h += `<div class="ts-s">${topic.subtitle||''}</div>`;
     h += topic.html || '';
 
@@ -1750,6 +1794,170 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Text-to-Speech — paragraph-by-paragraph with bottom player bar
+let tts = { secId: null, ti: null, paras: [], pi: 0, playing: false, topicName: '' };
+
+function getTopicParas(secId, topicIdx) {
+  const el = document.getElementById(`t-${secId}-${topicIdx}`);
+  if (!el) return [];
+  // Collect text from content blocks (p, li, td, th, h3, h4, divs with text)
+  const blocks = el.querySelectorAll('p, li, td, th, h3, h4, .tip, .def, .form, .warn, .hl, .kv, .kl');
+  const paras = [];
+  blocks.forEach(b => {
+    if (b.closest('.fcs, .fc, .ask-claude-btn, .tts-play')) return;
+    const txt = b.textContent.replace(/\s+/g, ' ').trim();
+    if (txt.length > 5) paras.push({ text: txt, el: b });
+  });
+  // If no blocks found, fall back to full section text split by sentences
+  if (!paras.length) {
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('.fcs, .fc, .ask-claude-btn, .tts-play').forEach(e => e.remove());
+    const full = clone.textContent.replace(/\s+/g, ' ').trim();
+    if (full) paras.push({ text: full, el: null });
+  }
+  return paras;
+}
+
+function ttsHighlight(para) {
+  document.querySelectorAll('.tts-hl').forEach(e => e.classList.remove('tts-hl'));
+  if (para && para.el) para.el.classList.add('tts-hl');
+}
+
+function pickVoice() {
+  const voices = speechSynthesis.getVoices();
+  const prefs = ['Karen', 'Daniel', 'Moira', 'Tessa', 'Samantha', 'Alex', 'Rishi'];
+  for (const name of prefs) {
+    const v = voices.find(v => v.name.includes(name) && v.lang.startsWith('en'));
+    if (v) return v;
+  }
+  return voices.find(v => v.lang.startsWith('en') && v.localService) ||
+         voices.find(v => v.lang.startsWith('en')) || null;
+}
+
+function ttsUpdateBar() {
+  const bar = document.getElementById('ttsBar');
+  const title = document.getElementById('ttsTitle');
+  const sub = document.getElementById('ttsSub');
+  const icon = document.getElementById('ttsPPIcon');
+  if (!tts.playing) {
+    bar.classList.remove('show');
+    document.body.classList.remove('tts-active');
+    return;
+  }
+  bar.classList.add('show');
+  document.body.classList.add('tts-active');
+  title.textContent = tts.topicName;
+  sub.textContent = `Paragraph ${tts.pi + 1} of ${tts.paras.length}`;
+  // Pause icon (two bars) when playing, play triangle when paused
+  if (tts.paused) {
+    icon.innerHTML = '<polygon points="6 3 20 12 6 21 6 3"/>';
+  } else {
+    icon.innerHTML = '<rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/>';
+  }
+}
+
+function ttsSpeak() {
+  if (!tts.playing || tts.pi >= tts.paras.length) { ttsFinish(); return; }
+  speechSynthesis.cancel();
+  const para = tts.paras[tts.pi];
+  ttsHighlight(para);
+  ttsUpdateBar();
+
+  const utter = new SpeechSynthesisUtterance(para.text);
+  utter.rate = 0.82;
+  const voice = pickVoice();
+  if (voice) utter.voice = voice;
+
+  utter.onend = () => {
+    if (!tts.playing) return;
+    tts.pi++;
+    ttsSpeak();
+  };
+  utter.onerror = () => {
+    if (!tts.playing) return;
+    tts.pi++;
+    ttsSpeak();
+  };
+
+  tts.paused = false;
+  speechSynthesis.speak(utter);
+}
+
+function toggleTTS(secId, topicIdx) {
+  // If same topic, just toggle bar visibility
+  if (tts.secId === secId && tts.ti === topicIdx && tts.playing) {
+    ttsClose();
+    return;
+  }
+  // Stop any existing
+  ttsClose();
+
+  const sec = SECTIONS[secId];
+  const topic = sec && sec.topics ? sec.topics[topicIdx] : null;
+  const paras = getTopicParas(secId, topicIdx);
+  if (!paras.length) return;
+
+  tts = { secId, ti: topicIdx, paras, pi: 0, playing: true, paused: false, topicName: topic ? topic.name : `Section ${secId}` };
+
+  // Mark the play icon as active
+  const btn = document.getElementById(`tts-${secId}-${topicIdx}`);
+  if (btn) btn.classList.add('active');
+
+  ttsSpeak();
+}
+
+function ttsPlayPause() {
+  if (!tts.playing) return;
+  if (tts.paused) {
+    // Resume — re-speak current paragraph from start (resume() is broken on mobile)
+    tts.paused = false;
+    ttsSpeak();
+  } else {
+    // Pause
+    speechSynthesis.cancel();
+    tts.paused = true;
+    ttsUpdateBar();
+  }
+}
+
+function ttsNext() {
+  if (!tts.playing) return;
+  speechSynthesis.cancel();
+  tts.pi = Math.min(tts.pi + 1, tts.paras.length - 1);
+  tts.paused = false;
+  ttsSpeak();
+}
+
+function ttsPrev() {
+  if (!tts.playing) return;
+  speechSynthesis.cancel();
+  tts.pi = Math.max(tts.pi - 1, 0);
+  tts.paused = false;
+  ttsSpeak();
+}
+
+function ttsClose() {
+  speechSynthesis.cancel();
+  document.querySelectorAll('.tts-hl').forEach(e => e.classList.remove('tts-hl'));
+  if (tts.secId !== null) {
+    const btn = document.getElementById(`tts-${tts.secId}-${tts.ti}`);
+    if (btn) btn.classList.remove('active');
+  }
+  tts = { secId: null, ti: null, paras: [], pi: 0, playing: false, paused: false, topicName: '' };
+  ttsUpdateBar();
+}
+
+function ttsFinish() {
+  document.querySelectorAll('.tts-hl').forEach(e => e.classList.remove('tts-hl'));
+  if (tts.secId !== null) {
+    const btn = document.getElementById(`tts-${tts.secId}-${tts.ti}`);
+    if (btn) btn.classList.remove('active');
+  }
+  tts.playing = false;
+  tts.paused = false;
+  ttsUpdateBar();
 }
 
 // Service Worker registration
