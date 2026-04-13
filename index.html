@@ -1797,37 +1797,50 @@ function showToast(msg) {
 }
 
 // Text-to-Speech — paragraph-by-paragraph with bottom player bar
-let tts = { secId: null, ti: null, paras: [], pi: 0, playing: false, topicName: '' };
+let tts = { secId: null, ti: null, paras: [], pi: 0, playing: false, paused: false, topicName: '' };
+let ttsAutoAdvance = false; // guard: only advance paragraph when speech ends naturally
 
 function getTopicParas(secId, topicIdx) {
   const el = document.getElementById(`t-${secId}-${topicIdx}`);
   if (!el) return [];
-  // Collect text from content blocks (p, li, td, th, h3, h4, divs with text)
-  const blocks = el.querySelectorAll('p, li, td, th, h3, h4, .tip, .def, .form, .warn, .hl, .kv, .kl');
+  // Content is in divs like .mb, .cd2, .eb — grab top-level content containers
+  const blocks = el.querySelectorAll('.mb, .cd2, .eb, .cd2 p, .cd2 li, .mb p, .eb p');
+  const seen = new Set();
   const paras = [];
   blocks.forEach(b => {
-    if (b.closest('.fcs, .fc, .ask-claude-btn, .tts-play')) return;
+    if (b.closest('.fcs, .fc, .ask-claude-btn, .tts-play, .ts-h')) return;
+    // Prefer leaf nodes (p, li) over parents, but use parent if no children matched
     const txt = b.textContent.replace(/\s+/g, ' ').trim();
-    if (txt.length > 5) paras.push({ text: txt, el: b });
+    if (txt.length < 8) return;
+    // Deduplicate — skip if this text is a substring of an already-added paragraph
+    if (seen.has(txt)) return;
+    // Skip if a parent's text was already added (avoid duplicating container + children)
+    let dominated = false;
+    for (const prev of seen) {
+      if (prev.includes(txt) || txt.includes(prev)) { dominated = true; break; }
+    }
+    if (dominated) return;
+    seen.add(txt);
+    paras.push({ text: txt, el: b });
   });
-  // If no blocks found, fall back to full section text split by sentences
+  // Fallback: grab all text
   if (!paras.length) {
     const clone = el.cloneNode(true);
-    clone.querySelectorAll('.fcs, .fc, .ask-claude-btn, .tts-play').forEach(e => e.remove());
+    clone.querySelectorAll('.fcs, .fc, .ask-claude-btn, .tts-play, .ts-h').forEach(e => e.remove());
     const full = clone.textContent.replace(/\s+/g, ' ').trim();
     if (full) paras.push({ text: full, el: null });
   }
   return paras;
 }
 
-function ttsHighlight(para) {
+function ttsClearHighlight() {
   document.querySelectorAll('.tts-hl').forEach(e => e.classList.remove('tts-hl'));
-  if (para && para.el) para.el.classList.add('tts-hl');
 }
 
 function pickVoice() {
   const voices = speechSynthesis.getVoices();
-  const prefs = ['Karen', 'Daniel', 'Moira', 'Tessa', 'Samantha', 'Alex', 'Rishi'];
+  // Prefer premium/enhanced natural voices
+  const prefs = ['Aaron', 'Zoe', 'Nicky', 'Karen', 'Daniel', 'Moira', 'Tessa', 'Samantha (Enhanced)', 'Samantha', 'Alex'];
   for (const name of prefs) {
     const v = voices.find(v => v.name.includes(name) && v.lang.startsWith('en'));
     if (v) return v;
@@ -1850,7 +1863,6 @@ function ttsUpdateBar() {
   document.body.classList.add('tts-active');
   title.textContent = tts.topicName;
   sub.textContent = `Paragraph ${tts.pi + 1} of ${tts.paras.length}`;
-  // Pause icon (two bars) when playing, play triangle when paused
   if (tts.paused) {
     icon.innerHTML = '<polygon points="6 3 20 12 6 21 6 3"/>';
   } else {
@@ -1860,38 +1872,47 @@ function ttsUpdateBar() {
 
 function ttsSpeak() {
   if (!tts.playing || tts.pi >= tts.paras.length) { ttsFinish(); return; }
-  speechSynthesis.cancel();
+
   const para = tts.paras[tts.pi];
-  ttsHighlight(para);
+  ttsClearHighlight();
+  if (para.el) para.el.classList.add('tts-hl');
+  tts.paused = false;
   ttsUpdateBar();
 
   const utter = new SpeechSynthesisUtterance(para.text);
-  utter.rate = 0.82;
+  utter.rate = 0.78;
   const voice = pickVoice();
   if (voice) utter.voice = voice;
 
+  ttsAutoAdvance = true; // allow natural advance
+
   utter.onend = () => {
+    if (!ttsAutoAdvance) return; // cancelled manually — don't advance
     if (!tts.playing) return;
     tts.pi++;
     ttsSpeak();
   };
   utter.onerror = () => {
+    if (!ttsAutoAdvance) return;
     if (!tts.playing) return;
     tts.pi++;
     ttsSpeak();
   };
 
-  tts.paused = false;
   speechSynthesis.speak(utter);
 }
 
+// Safe cancel that prevents onend from firing auto-advance
+function ttsCancelSafe() {
+  ttsAutoAdvance = false;
+  speechSynthesis.cancel();
+}
+
 function toggleTTS(secId, topicIdx) {
-  // If same topic, just toggle bar visibility
   if (tts.secId === secId && tts.ti === topicIdx && tts.playing) {
     ttsClose();
     return;
   }
-  // Stop any existing
   ttsClose();
 
   const sec = SECTIONS[secId];
@@ -1900,8 +1921,6 @@ function toggleTTS(secId, topicIdx) {
   if (!paras.length) return;
 
   tts = { secId, ti: topicIdx, paras, pi: 0, playing: true, paused: false, topicName: topic ? topic.name : `Section ${secId}` };
-
-  // Mark the play icon as active
   const btn = document.getElementById(`tts-${secId}-${topicIdx}`);
   if (btn) btn.classList.add('active');
 
@@ -1911,12 +1930,11 @@ function toggleTTS(secId, topicIdx) {
 function ttsPlayPause() {
   if (!tts.playing) return;
   if (tts.paused) {
-    // Resume — re-speak current paragraph from start (resume() is broken on mobile)
-    tts.paused = false;
+    // Resume: re-speak current paragraph
     ttsSpeak();
   } else {
-    // Pause
-    speechSynthesis.cancel();
+    // Pause: stop speech, stay on current paragraph
+    ttsCancelSafe();
     tts.paused = true;
     ttsUpdateBar();
   }
@@ -1924,23 +1942,21 @@ function ttsPlayPause() {
 
 function ttsNext() {
   if (!tts.playing) return;
-  speechSynthesis.cancel();
+  ttsCancelSafe();
   tts.pi = Math.min(tts.pi + 1, tts.paras.length - 1);
-  tts.paused = false;
   ttsSpeak();
 }
 
 function ttsPrev() {
   if (!tts.playing) return;
-  speechSynthesis.cancel();
+  ttsCancelSafe();
   tts.pi = Math.max(tts.pi - 1, 0);
-  tts.paused = false;
   ttsSpeak();
 }
 
 function ttsClose() {
-  speechSynthesis.cancel();
-  document.querySelectorAll('.tts-hl').forEach(e => e.classList.remove('tts-hl'));
+  ttsCancelSafe();
+  ttsClearHighlight();
   if (tts.secId !== null) {
     const btn = document.getElementById(`tts-${tts.secId}-${tts.ti}`);
     if (btn) btn.classList.remove('active');
@@ -1950,7 +1966,7 @@ function ttsClose() {
 }
 
 function ttsFinish() {
-  document.querySelectorAll('.tts-hl').forEach(e => e.classList.remove('tts-hl'));
+  ttsClearHighlight();
   if (tts.secId !== null) {
     const btn = document.getElementById(`tts-${tts.secId}-${tts.ti}`);
     if (btn) btn.classList.remove('active');
