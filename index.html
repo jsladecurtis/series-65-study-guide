@@ -44,9 +44,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f0f2f5;color:var(--g80
 .pr-lbl{font-size:.58rem;color:var(--g400)}
 
 /* Chapter nav */
-.ch-nav{background:var(--g50);border-bottom:1px solid var(--g200);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.ch-nav::-webkit-scrollbar{display:none}
-.ch-nav-in{max-width:960px;margin:0 auto;padding:6px 16px;display:flex;gap:6px}
+.ch-nav{background:var(--g50);border-bottom:1px solid var(--g200);overflow:visible;position:relative;z-index:100}
+.ch-nav-in{max-width:960px;margin:0 auto;padding:6px 16px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ch-nav-in::-webkit-scrollbar{display:none}
 .cb{position:relative;padding:6px 14px;border-radius:8px;border:1.5px solid var(--g200);background:white;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;color:var(--g500);white-space:nowrap;flex-shrink:0}
 .cb:hover,.cb.act{border-color:var(--blue);color:var(--blue);background:var(--bbg)}
 .cb-lbl{display:block;cursor:pointer;-webkit-tap-highlight-color:transparent}
