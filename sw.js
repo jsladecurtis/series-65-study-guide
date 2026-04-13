@@ -1,4 +1,4 @@
-const CACHE_NAME = 'series65-v1';
+const CACHE_NAME = 'series65-v2';
 const ASSETS = [
   './',
   './index.html',
