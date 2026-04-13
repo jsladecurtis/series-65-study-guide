@@ -50,12 +50,19 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f0f2f5;color:var(--g80
 .cb{position:relative;padding:6px 14px;border-radius:8px;border:1.5px solid var(--g200);background:white;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;color:var(--g500);white-space:nowrap;flex-shrink:0}
 .cb:hover,.cb.act{border-color:var(--blue);color:var(--blue);background:var(--bbg)}
 .cb-lbl{display:block;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.cd{display:none;position:absolute;top:calc(100% + 4px);left:0;background:white;border:1px solid var(--g200);border-radius:10px;box-shadow:var(--shl);padding:8px 0;min-width:240px;z-index:9999;max-height:350px;overflow-y:auto}
-.cb.open .cd{display:block}
-.cd a{display:block;padding:11px 16px;font-size:.82rem;font-weight:500;color:var(--g600);text-decoration:none;transition:all .15s;-webkit-tap-highlight-color:transparent}
-.cd a:hover{background:var(--bbg);color:var(--blue)}
-.cd a.cur{background:var(--bl);color:var(--blue);font-weight:700}
-.cd .cgl{padding:5px 16px 2px;font-size:.62rem;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.5px}
+.cd{display:none}
+.ch-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:10000;align-items:flex-start;justify-content:center;padding-top:60px}
+.ch-overlay.show{display:flex}
+.ch-overlay-box{background:white;border-radius:16px;width:90%;max-width:360px;max-height:75vh;overflow-y:auto;box-shadow:0 20px 40px rgba(0,0,0,.3);padding:0;animation:slideDown .2s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+.ch-overlay-head{padding:14px 18px;border-bottom:1px solid var(--g200);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;border-radius:16px 16px 0 0}
+.ch-overlay-head h3{font-size:.95rem;font-weight:800;color:var(--g900)}
+.ch-overlay-close{width:30px;height:30px;border-radius:50%;border:none;background:var(--g100);color:var(--g600);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ch-overlay-close:hover{background:var(--red);color:white}
+.ch-overlay a{display:block;padding:12px 18px;font-size:.85rem;font-weight:500;color:var(--g600);text-decoration:none;transition:all .15s;border-bottom:1px solid var(--g100);-webkit-tap-highlight-color:transparent}
+.ch-overlay a:last-child{border-bottom:none}
+.ch-overlay a:hover,.ch-overlay a:active{background:var(--bbg);color:var(--blue)}
+.ch-overlay .cgl{padding:10px 18px 4px;font-size:.65rem;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.5px;background:var(--g50)}
 
 /* Topic nav pills */
 .tp-nav{background:white;border-bottom:1px solid var(--g200);position:relative;z-index:1}
@@ -348,6 +355,14 @@ ul.sl.dte li::before{background:var(--teal)}ul.sl.dp li::before{background:var(-
 </div>
 
 <div class="container" id="mainContent"></div>
+</div>
+
+<!-- CHAPTER OVERLAY -->
+<div class="ch-overlay" id="chOverlay" onclick="if(event.target===this)closeChOverlay()">
+  <div class="ch-overlay-box">
+    <div class="ch-overlay-head"><h3 id="chOverlayTitle">Select Section</h3><button class="ch-overlay-close" onclick="closeChOverlay()">✕</button></div>
+    <div id="chOverlayBody"></div>
+  </div>
 </div>
 
 <!-- MODAL -->
@@ -1414,12 +1429,26 @@ const chapters = [
 function buildChapterNav() {
   const nav = document.getElementById('chNav');
   nav.innerHTML = chapters.map(ch => {
-    const links = ch.sections.map(s => {
-      const sec = SECTIONS[s];
-      return `<a href="#" onclick="event.preventDefault();event.stopPropagation();document.querySelectorAll('.cb').forEach(b=>b.classList.remove('open'));jumpToSection('${s}')" ${s===getCurrentSection()?'class="cur"':''}>${s} ${sec?sec.title:''}</a>`;
-    }).join('');
-    return `<div class="cb"><span class="cb-lbl" onclick="toggleCh(this.parentElement,event)">${ch.label} (${ch.weight}) ▾</span><div class="cd"><div class="cgl">${ch.label} — ${ch.qs} exam questions</div>${links}</div></div>`;
+    return `<div class="cb" onclick="openChOverlay('${ch.id}')"><span class="cb-lbl">${ch.label} (${ch.weight}) ▾</span></div>`;
   }).join('');
+}
+
+function openChOverlay(chId) {
+  const ch = chapters.find(c=>c.id===chId);
+  if(!ch) return;
+  document.getElementById('chOverlayTitle').textContent = ch.label + ' — ' + ch.qs + ' exam questions';
+  const links = ch.sections.map(s => {
+    const sec = SECTIONS[s];
+    return `<a href="#" onclick="event.preventDefault();closeChOverlay();jumpToSection('${s}')">${s} — ${sec?sec.title:''}</a>`;
+  }).join('');
+  document.getElementById('chOverlayBody').innerHTML = links;
+  document.getElementById('chOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeChOverlay() {
+  document.getElementById('chOverlay').classList.remove('show');
+  document.body.style.overflow = '';
 }
 
 function buildTopicNav(secId) {
@@ -1437,12 +1466,7 @@ function getCurrentSection() {
   return Object.keys(SECTIONS)[0] || '1.1';
 }
 
-function toggleCh(el,ev) {
-  if(ev) { ev.stopPropagation(); ev.preventDefault(); }
-  document.querySelectorAll('.cb').forEach(b=>{if(b!==el)b.classList.remove('open')});
-  el.classList.toggle('open');
-}
-document.addEventListener('click',e=>{if(!e.target.closest('.cb'))document.querySelectorAll('.cb').forEach(b=>b.classList.remove('open'))});
+// Chapter nav uses overlay - see openChOverlay/closeChOverlay
 
 function goTo(id) {
   const el = document.getElementById(id);
